@@ -25,5 +25,30 @@ module double_tokens
     // a -> 10010011000110100001100100
     // b -> 11011011110111111001111110
 
+    logic [7:0] counter;
+    logic [7:0] seq_counter;
+    
+    assign b = a || (counter > 0);
 
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            seq_counter <= 8'b0;
+            counter     <= 8'b0;
+            overflow    <= 1'b0;
+        end
+        else begin
+            if (a) begin
+                    seq_counter <= seq_counter + 1;
+                if (counter < 255)
+                    counter <= counter + 1;
+            end else begin
+                seq_counter <= 1'b0;
+                if (counter > 0) 
+                    counter <= counter - 1;
+            end
+
+            if (seq_counter > 200)
+                overflow <= 1'b1;
+        end
+    end
 endmodule
