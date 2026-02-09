@@ -86,5 +86,54 @@ module sort_three_floats (
     // The FLEN parameter is defined in the "import/preprocessed/cvw/config-shared.vh" file
     // and usually equal to the bit width of the double-precision floating-point number, FP64, 64 bits.
 
+    logic u0_less_or_equal_u1;
+    logic u0_less_or_equal_u2;
+    logic u1_less_or_equal_u2;
 
+    logic err_01, err_02, err_12;
+
+    f_less_or_equal i_floe_1
+    (
+        .a   ( unsorted [0]        ),
+        .b   ( unsorted [1]        ),
+        .res ( u0_less_or_equal_u1 ),
+        .err ( err_01              )
+    );
+
+    f_less_or_equal i_floe_2
+    (
+        .a   ( unsorted [0]        ),
+        .b   ( unsorted [2]        ),
+        .res ( u0_less_or_equal_u2 ),
+        .err ( err_02              )
+    );
+
+    f_less_or_equal i_floe_3
+    (
+        .a   ( unsorted [1]        ),
+        .b   ( unsorted [2]        ),
+        .res ( u1_less_or_equal_u2 ),
+        .err ( err_12              )
+    );
+
+    assign err = err_01 | err_02 | err_12;
+
+    always_comb begin
+        if ( u0_less_or_equal_u2 & ~u1_less_or_equal_u2)
+            sorted = { unsorted [0], unsorted [2], unsorted [1] };
+
+        else if (~u0_less_or_equal_u1 &  u0_less_or_equal_u2)
+            sorted = { unsorted [1], unsorted [0], unsorted [2] };
+
+        else if ( u1_less_or_equal_u2 & ~u0_less_or_equal_u2)
+            sorted = { unsorted [1], unsorted [2], unsorted [0] };
+
+        else if (~u0_less_or_equal_u2 &  u0_less_or_equal_u1)
+            sorted = { unsorted [2], unsorted [0], unsorted [1] };
+
+        else if (~u1_less_or_equal_u2 & ~u0_less_or_equal_u1)
+            sorted = { unsorted [2], unsorted [1], unsorted [0] };
+        else
+            sorted = unsorted;
+    end
 endmodule
