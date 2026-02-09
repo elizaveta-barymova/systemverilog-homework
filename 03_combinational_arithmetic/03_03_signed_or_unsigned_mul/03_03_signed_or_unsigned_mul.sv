@@ -53,4 +53,13 @@ module signed_or_unsigned_mul
   output [2 * n - 1:0] res
 );
 
+  logic signed [    n - 1:0] a_signed, b_signed;
+  logic signed [2 * n - 1:0] res_signed;
+
+  assign a_signed = $signed(a);
+  assign b_signed = $signed(b);
+  assign res_signed = a_signed * b_signed;
+
+  assign res = (signed_mul) ? res_signed : (a * b);
+
 endmodule
