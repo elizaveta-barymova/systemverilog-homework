@@ -36,5 +36,11 @@ module signed_add_with_saturation
   // and the arguments are negative,
   // the sum should be set to the minimum negative number.
 
+  logic [3:0] pre_sum;
+
+  assign pre_sum = a + b;
+
+  assign sum = (~a[3] & ~b[3] & pre_sum[3]) ? 4'b0111 :
+               (a[3] & b[3] & ~pre_sum[3])  ? 4'b1000 : pre_sum;
 
 endmodule
