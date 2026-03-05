@@ -61,5 +61,107 @@ module formula_1_pipe_aware_fsm
     // FPGA-Systems Magazine :: FSM :: Issue ALFA (state_0)
     // You can download this issue from https://fpga-systems.ru/fsm#state_0
 
+    logic [31:0] a_reg, b_reg, c_reg;
+    logic [31:0] pre_res;
+
+    // FSM for isqrt inputs
+    enum logic [1:0]
+    {
+        st_x_idle   = 2'b00,
+        st_x_1      = 2'b01,
+        st_x_2      = 2'b10,
+        st_x_3      = 2'b11
+    }
+    state;
+
+    always_ff @ (posedge clk)
+    if (rst)
+        state <= st_x_idle;
+    else
+        case (state)
+        st_x_idle : if ( arg_vld ) state <= st_x_1;
+        st_x_1    :                state <= st_x_2;
+        st_x_2    :                state <= st_x_3;
+        st_x_3    :                state <= st_x_idle;
+        endcase
+
+    // Save values
+    always_ff @ (posedge clk)
+        if (rst) begin
+            a_reg <= '0;
+            b_reg <= '0;
+            c_reg <= '0;
+        end else if (state == st_x_idle && arg_vld) begin
+            a_reg <= a;
+            b_reg <= b;
+            c_reg <= c;
+        end
+
+    // Datapath
+    always_comb begin
+        isqrt_x_vld = '0;
+        isqrt_x = 'x;
+
+        case (state)
+        st_x_idle: begin 
+            isqrt_x_vld = arg_vld;
+            isqrt_x     = a;
+        end
+
+        st_x_1 : begin
+            isqrt_x_vld = '1;
+            isqrt_x     = b_reg;
+        end
+
+        st_x_2 : begin
+            isqrt_x_vld = '1;
+            isqrt_x     = c_reg;
+        end
+        endcase
+    end
+
+    // FSM for isqrt outputs
+    enum logic [1:0]
+    {
+        st_wait_idle = 2'b00,
+        st_wait_1    = 2'b01,
+        st_wait_2    = 2'b10,
+        st_wait_3    = 2'b11
+    }
+    state_y, next_state;
+
+    always_comb begin
+        next_state = state_y;
+
+        case (state_y)
+        st_wait_idle : if ( arg_vld     ) next_state = st_wait_1;
+        st_wait_1    : if ( isqrt_y_vld ) next_state = st_wait_2;
+        st_wait_2    : if ( isqrt_y_vld ) next_state = st_wait_3;
+        st_wait_3    : if ( isqrt_y_vld ) next_state = st_wait_idle;
+        endcase
+    end
+
+    always_ff @ (posedge clk)
+        if (rst)
+            state_y <= st_wait_idle;
+        else
+            state_y <= next_state;
+
+    // Result
+    always_ff @ (posedge clk)
+        if (rst) begin
+            res     <= '0;
+            res_vld <= '0;
+        end else begin
+            if (state_y == st_wait_idle)
+                res <= '0;
+            else if (isqrt_y_vld)
+                res <= res + {16'b0, isqrt_y};
+
+            if (state_y == st_wait_3 & isqrt_y_vld) 
+                res_vld <= '1;
+            else
+                res_vld <= '0;
+        end
 
 endmodule

@@ -43,5 +43,106 @@ module sqrt_formula_distributor
     // Instantiate sufficient number of "formula_1_impl_1_top", "formula_1_impl_2_top",
     // or "formula_2_top" modules to achieve desired performance.
 
+    localparam N_f1_i1 = 14;
+    localparam N_f1_i2 = 34;
+    localparam N_f2    = 50;
+    localparam N = (formula == 1 && impl == 1) ? N_f1_i1 :
+                   (formula == 1 && impl == 2) ? N_f1_i2 :
+                   (formula == 2)              ? N_f2    : 0;
+
+    logic [$clog2(N)-1:0] counter;
+
+    logic [31:0] a_reg       [N-1:0];
+    logic [31:0] b_reg       [N-1:0];
+    logic [31:0] c_reg       [N-1:0];
+    logic        arg_vld_reg [N-1:0];
+
+    logic [31:0] isqrt_y     [N-1:0];
+    logic        isqrt_y_vld [N-1:0];
+
+    logic [31:0] res_mux;
+    logic        res_vld_mux;
+
+    always_ff @(posedge clk) begin
+        if (rst)
+            counter <= '0;
+        else begin
+            if (counter == N - 1) 
+                counter <= '0;
+            else if (arg_vld)
+                counter <= counter + 1'b1;
+        end
+    end
+
+    generate
+        for (genvar i = 0; i < N; i++) begin : calc
+            always_ff @(posedge clk) begin
+                if (rst) begin
+                    a_reg[i]       <= '0;
+                    b_reg[i]       <= '0;
+                    c_reg[i]       <= '0;
+                    arg_vld_reg[i] <= '0;
+                end else begin
+                    arg_vld_reg[i] <= '0;
+                    
+                    if (counter == i && arg_vld) begin
+                        a_reg[i]       <= a;
+                        b_reg[i]       <= b;
+                        c_reg[i]       <= c;
+                        arg_vld_reg[i] <= 1'b1;
+                    end
+                end
+            end
+
+            if (formula == 1 && impl == 1) begin
+                formula_1_impl_1_top u_calc (
+                        .clk    ( clk            ),
+                        .rst    ( rst            ),
+                        .arg_vld( arg_vld_reg[i] ),
+                        .a      ( a_reg[i]       ),
+                        .b      ( b_reg[i]       ),
+                        .c      ( c_reg[i]       ),
+                        .res_vld( isqrt_y_vld[i] ),
+                        .res    ( isqrt_y[i]     )
+                );
+            end else if (formula == 1 && impl == 2) begin
+                formula_1_impl_2_top u_calc (
+                        .clk    ( clk            ),
+                        .rst    ( rst            ),
+                        .arg_vld( arg_vld_reg[i] ),
+                        .a      ( a_reg[i]       ),
+                        .b      ( b_reg[i]       ),
+                        .c      ( c_reg[i]       ),
+                        .res_vld( isqrt_y_vld[i] ),
+                        .res    ( isqrt_y[i]     )
+                );
+            end else begin
+                formula_2_top u_calc (
+                        .clk    ( clk            ),
+                        .rst    ( rst            ),
+                        .arg_vld( arg_vld_reg[i] ),
+                        .a      ( a_reg[i]       ),
+                        .b      ( b_reg[i]       ),
+                        .c      ( c_reg[i]       ),
+                        .res_vld( isqrt_y_vld[i] ),
+                        .res    ( isqrt_y[i]     )
+                );
+            end
+        end
+    endgenerate
+
+    always_comb begin
+        res_mux     = '0;
+        res_vld_mux = '0;
+        for (int k = 0; k < N; k++) begin
+            if (isqrt_y_vld[k]) begin
+                res_mux     = isqrt_y[k];
+                res_vld_mux = '1;
+            end
+        end 
+    end
+
+    assign res     = res_mux;
+    assign res_vld = res_vld_mux;
 
 endmodule
